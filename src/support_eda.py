@@ -12,6 +12,11 @@ import seaborn as sns
 # -----------------------------------------------------------------------
 import math
 
+# Advanced Statistical Methods
+# -----------------------------------------------------------------------
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
+
 
 def checker(df, col):
     """
@@ -278,47 +283,24 @@ def quick_plot_numeric(df, col, num=10, size=(10,5), rotation=45, color = 'mako'
     plot_numeric_distribution(df, min_, max_, col, n, size=size, rotation=rotation)
 
 
-def plot_groupby(df, groupby, col, max_entries, size=(12, 6), palette='mako', method='median'):
-    """
-    Plots the median values of a numeric column grouped by a specified categorical column.
+def plot_groupby(df, groupby, cols, size=(12, 6), method='median'):
 
-    Parameters:
-    - df (pd.DataFrame): The DataFrame containing the data.
-    - groupby (str): The name of the categorical column to group by.
-    - col (str): The name of the numeric column for which medians are calculated.
-    - max_entries (int): The maximum number of group entries to display.
-    - size (tuple, optional): The size of the plot as (width, height). Defaults to (12, 6).
-    - palette (str, optional): The color palette for the bar plot. Defaults to 'mako'.
+    fig, axes = plt.subplots(ncols=2, nrows=math.ceil(len(cols)/2), figsize=size)
+    axes = axes.flat
 
-    Returns:
-    - None: Displays a bar plot of the median values per group.
-    """
+    for i, col in enumerate(cols):
 
-    if method=='median':
+        if method == 'median':
+            df_group = df.groupby(groupby)[col].median().reset_index()
 
-        grouped_df = (
-            df.groupby(groupby)[col]
-            .median()
-            .sort_values()
-            .reset_index()
-        )
+        elif method == 'mean':
+            df_group = df.groupby(groupby)[col].mean().reset_index()
+             
+        sns.barplot(x=groupby, y=col, data=df_group, ax=axes[i], palette='coolwarm')
+        axes[i].set_title(col)
 
-    elif method=='mean':
-            grouped_df = (
-        df.groupby(groupby)[col]
-        .mean()
-        .sort_values()
-        .reset_index()
-    )
-
-    plt.figure(figsize=size)
-    sns.barplot(
-        data=grouped_df.iloc[:max_entries],
-        y=col,
-        x=groupby,
-        palette=palette,
-        edgecolor="black"
-    )
+    if len(cols) % 2 != 0:
+        fig.delaxes(axes[-1])
 
     plt.title(f'{col} median per {groupby}')
     plt.xlabel('')
@@ -328,47 +310,43 @@ def plot_groupby(df, groupby, col, max_entries, size=(12, 6), palette='mako', me
     plt.show()
 
 
-def plot_relation_tv(df, tv, size=(40, 40), n_cols = 2):
+def find_outliers(dataframe, cols, method="lof", random_state=42, n_est=100, contamination=0.01, n_neigh=20): 
     """
-    Plots the relationship of each column in the DataFrame with a target variable using histograms and count plots.
+    Identifies outliers in a given dataset using Isolation Forest or Local Outlier Factor methods.
 
     Parameters:
-    - df (pd.DataFrame): The input DataFrame containing the data to be visualized.
-    - tv (str): The name of the target variable column to analyze relationships with.
-    - size (tuple, optional): The size of the overall figure. Default is (40, 40).
-    - n_cols (int, optional): The number of columns in the subplot grid. Default is 2.
+    - dataframe (pd.DataFrame): The input dataframe containing the data to analyze.
+    - cols (list): List of column names to be used for outlier detection.
+    - method (str, optional): The method to use for detecting outliers. Options are "ifo" (Isolation Forest) or "lof" (Local Outlier Factor). Defaults to "lof".
+    - random_state (int, optional): Random seed for reproducibility when using Isolation Forest. Defaults to 42.
+    - n_est (int, optional): Number of estimators for the Isolation Forest model. Defaults to 100.
+    - contamination (float, optional): The proportion of outliers in the dataset. Defaults to 0.01.
+    - n_neigh (int, optional): Number of neighbors for the Local Outlier Factor model. Defaults to 20.
 
     Returns:
-    - None: The function directly displays the plots.
+    - (tuple): A tuple containing:
+    - pd.DataFrame: The original dataframe with an added column 'outlier' indicating the outlier status (-1 for outliers, 1 for inliers).
+    - object: The trained model used for outlier detection.
+
+    Recommendations:
+    - `n_estimators` (Isolation Forest): `100-300`. More trees improve accuracy, rarely needed >500.
+    - `contamination`: `0.01-0.1`. Adjust based on expected anomalies (higher if >10% anomalies).
+    - `n_neighbors` (LOF): `10-50`. Low for local anomalies, high for large/noisy datasets.
     """
 
-    num_cols = df.select_dtypes(include=np.number).columns
-    cat_cols = df.select_dtypes(include=['O', 'category']).columns
+    df = dataframe.copy()
 
-    fig, axes = plt.subplots(math.ceil(len(df.columns) / n_cols), n_cols, figsize=size)
+    if method == "ifo":  
+        model = IsolationForest(random_state=random_state, n_estimators=n_est, contamination=contamination, n_jobs=-1)
+        outliers = model.fit_predict(X=df[cols])
 
-    axes = axes.flat
+    elif method == "lof":
+        model = LocalOutlierFactor(n_neighbors=n_neigh, contamination=contamination, n_jobs=-1)
+        outliers = model.fit_predict(X=df[cols])
 
-    for i, col in enumerate(df.columns):
-        if col == tv:
-            fig.delaxes(axes[i])
+    else:
+        raise ValueError("Unrecognized method. Use 'ifo', or 'lof'.")
+    
+    df = pd.concat([df, pd.DataFrame(outliers, columns=['outlier'])], axis=1)
 
-        elif col in num_cols:
-            sns.histplot(x = col, 
-                            hue = tv, 
-                            data = df, 
-                            ax = axes[i], 
-                            palette = "magma", 
-                            legend = True)
-            
-        elif col in cat_cols:
-            sns.countplot(x = col, 
-                            hue = tv, 
-                            data = df, 
-                            ax = axes[i], 
-                            palette = "magma"
-                            )
-
-        axes[i].set_title(f"{col} vs {tv}")   
-
-    plt.tight_layout()
+    return df, model
