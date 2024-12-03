@@ -20,7 +20,7 @@ from scipy.stats import chi2_contingency
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler  
 
 
-def chi2_test(df,  categories, target_variable, alpha = 0.05, show=False):
+def chi2_test(df,  categories, target_variable, alpha=0.05, show=False):
     """
     Performs a chi-squared test of independence for multiple categorical variables against a target variable.
 
@@ -323,10 +323,10 @@ def preprocess(df, encoding_methods, scaling_method, columns_drop=None):
         df.drop(columns=columns_drop, inplace=True)
 
     # Encode categorical variables.
-    encoder = Encoding(df, encoding_methods, None)  # Assuming Encoding class is defined elsewhere.
+    encoder = Encoding(df, encoding_methods, None)
     df_encoded = encoder.execute_all_encodings()
 
     # Scale the encoded DataFrame.
-    df_scaled, scaler = scale_df(df_encoded, df_encoded.columns.to_list(), method=scaling_method)  # Assuming scale_df is defined elsewhere.
+    df_scaled = scale_df(df_encoded, df_encoded.columns.to_list(), method=scaling_method)
 
     return df_encoded, df_scaled
