@@ -331,7 +331,7 @@ def spectral_methods(df, n_clusters_list = [2, 3, 4, 5], assign_labels_options =
     for n_clusters in n_clusters_list:
         for assign_labels in assign_labels_options:
 
-            # # Config SpectralClustering model
+            # Config SpectralClustering model
             spectral = SpectralClustering(
                 n_clusters=n_clusters,
                 assign_labels=assign_labels,
@@ -360,7 +360,7 @@ def spectral_methods(df, n_clusters_list = [2, 3, 4, 5], assign_labels_options =
             else:
                 cluster_cardinality = {'Unique cluster': len(df)}
                     
-            # Guardar resultados
+            # Save results
             results.append({
                 "n_clusters": n_clusters,
                 "assign_labels": assign_labels,
