@@ -350,3 +350,52 @@ def find_outliers(dataframe, cols, method="lof", random_state=42, n_est=100, con
     df = pd.concat([df, pd.DataFrame(outliers, columns=['outlier'])], axis=1)
 
     return df, model
+
+
+def plot_relation_tv(df, tv, size=(40, 40), n_cols = 2):
+    """
+    Plots the relationship of each column in the DataFrame with a target variable using histograms and count plots.
+
+    Parameters:
+    - df (pd.DataFrame): The input DataFrame containing the data to be visualized.
+    - tv (str): The name of the target variable column to analyze relationships with.
+    - size (tuple, optional): The size of the overall figure. Default is (40, 40).
+    - n_cols (int, optional): The number of columns in the subplot grid. Default is 2.
+
+    Returns:
+    - None: The function directly displays the plots.
+    """
+
+    num_cols = df.select_dtypes(include=np.number).columns
+    cat_cols = df.select_dtypes(include=['O', 'category']).columns
+
+    fig, axes = plt.subplots(math.ceil(len(df.columns) / n_cols), n_cols, figsize=size)
+
+    axes = axes.flat
+
+    for i, col in enumerate(df.columns):
+        if col == tv:
+            fig.delaxes(axes[i])
+
+        elif col in num_cols:
+            sns.histplot(x = col, 
+                            hue = tv, 
+                            data = df, 
+                            ax = axes[i], 
+                            palette = "magma", 
+                            legend = True)
+            
+        elif col in cat_cols:
+            sns.countplot(x = col, 
+                            hue = tv, 
+                            data = df, 
+                            ax = axes[i], 
+                            palette = "magma"
+                            )
+
+        axes[i].set_title(f"{col} vs {tv}")   
+
+    if len(df.columns.to_list()) % 2 != 0:
+        fig.delaxes(axes[-1])
+
+    plt.tight_layout()
