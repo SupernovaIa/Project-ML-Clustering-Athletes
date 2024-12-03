@@ -15,6 +15,9 @@ from category_encoders import TargetEncoder
 
 from scipy.stats import chi2_contingency
 
+# Data scaling  
+# -----------------------------------------------------------------------  
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler  
 
 
 def chi2_test(df,  categories, target_variable, alpha = 0.05, show=False):
@@ -254,3 +257,76 @@ class Encoding:
 
         # Return the updated DataFrame after all encodings
         return self.df
+    
+
+def scale_df(df, cols, method="robust", include_others=False):
+    """
+    Scale selected columns of a DataFrame using specified scaling method.
+    
+    Parameters:
+        df (pd.DataFrame): Input DataFrame.
+        cols (list): List of columns to scale.
+        method (str): Scaling method, one of ["minmax", "robust", "standard"]. Defaults to "robust".
+        include_others (bool): If True, include non-scaled columns in the output. Defaults to False.
+    
+    Returns:
+        pd.DataFrame: DataFrame with scaled columns (and optionally unscaled columns).
+    """
+    if method not in ["minmax", "robust", "standard"]:
+        raise ValueError(f"Invalid method '{method}'. Choose from ['minmax', 'robust', 'standard'].")
+    
+    if not all(col in df.columns for col in cols):
+        missing = [col for col in cols if col not in df.columns]
+        raise ValueError(f"Columns not found in DataFrame: {missing}")
+    
+    # Select the scaler
+    scaler = {
+        "minmax": MinMaxScaler(),
+        "robust": RobustScaler(),
+        "standard": StandardScaler()
+    }[method]
+    
+    # Scale the selected columns
+    scaled_data = scaler.fit_transform(df[cols])
+    df_scaled = pd.DataFrame(scaled_data, columns=cols, index=df.index)
+    
+    # Include unscaled columns if requested
+    if include_others:
+        unscaled_cols = df.drop(columns=cols)
+        df_scaled = pd.concat([df_scaled, unscaled_cols], axis=1)
+    
+    return df_scaled
+
+
+def preprocess(df, encoding_methods, scaling_method, columns_drop=None):
+    """
+    Preprocesses a DataFrame by dropping specified columns, encoding categorical variables, and scaling numerical features.
+
+    Parameters
+    ----------
+        df (pd.DataFrame): The input DataFrame.
+        encoding_methods (List[str]): A list of encoding methods to apply to categorical columns.
+        scaling_method (str): The method to use for scaling numeric columns (e.g., 'standard', 'minmax').
+        columns_drop (Optional[List[str]]): List of column names to drop from the DataFrame.
+
+    Returns
+    -------
+        Tuple[pd.DataFrame, pd.DataFrame]: A tuple containing:
+            - Encoded DataFrame (df_encoded).
+            - Scaled DataFrame (df_scaled).
+    """
+    # Create a copy of the DataFrame to avoid modifying the original.
+    df = df.copy()
+
+    # Drop specified columns if provided.
+    if columns_drop:
+        df.drop(columns=columns_drop, inplace=True)
+
+    # Encode categorical variables.
+    encoder = Encoding(df, encoding_methods, None)  # Assuming Encoding class is defined elsewhere.
+    df_encoded = encoder.execute_all_encodings()
+
+    # Scale the encoded DataFrame.
+    df_scaled, scaler = scale_df(df_encoded, df_encoded.columns.to_list(), method=scaling_method)  # Assuming scale_df is defined elsewhere.
+
+    return df_encoded, df_scaled
