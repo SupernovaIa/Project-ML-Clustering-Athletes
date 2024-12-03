@@ -224,7 +224,6 @@ def evaluate_balance(cardinality):
     return max(cluster_sizes) / min(cluster_sizes) if min(cluster_sizes) > 0 else float('inf')
 
 
-
 def agglomerative_methods(df, n_min=2, n_max=5, linkage_methods = ['complete',  'ward'], distance_metrics = ['euclidean', 'cosine', 'chebyshev']):
     """
     Performs Agglomerative Clustering using various linkage methods, distance metrics, and cluster counts, and evaluates the results.
@@ -308,6 +307,70 @@ def agglomerative_methods(df, n_min=2, n_max=5, linkage_methods = ['complete',  
 
     return results_df
 
+
+def spectral_methods(df, n_clusters_list = [2, 3, 4, 5], assign_labels_options = ["kmeans", "discretize"]):
+    """
+    Performs Spectral Clustering with various configurations and evaluates the results.
+
+    The function applies Spectral Clustering using different numbers of clusters and label assignment methods, then computes performance metrics such as Silhouette Score and Davies-Bouldin Index for each configuration. Results are returned as a DataFrame.
+
+    Parameters
+    ----------
+        - df (pd.DataFrame): The input data for clustering, where rows represent samples and columns represent features.
+        - n_clusters_list (list of int, optional): A list of the numbers of clusters to evaluate. Defaults to [2, 3, 4, 5].
+        - assign_labels_options (list of str, optional): A list of label assignment methods to use. Defaults to ["kmeans", "discretize"].
+
+    Returns
+    -------
+        - pd.DataFrame: A DataFrame containing the results with columns for number of clusters, label assignment method, Silhouette Score, Davies-Bouldin Index, and cluster cardinality.
+    """
+
+    # Results storage
+    results = []
+
+    for n_clusters in n_clusters_list:
+        for assign_labels in assign_labels_options:
+
+            # # Config SpectralClustering model
+            spectral = SpectralClustering(
+                n_clusters=n_clusters,
+                assign_labels=assign_labels,
+                random_state=42
+            )
+
+            # Model fit
+            labels = spectral.fit_predict(df)
+
+            # Initialize metrics
+            silhouette, db_score = None, None
+
+            # Get metrics if we have more than one cluster
+            if len(np.unique(labels)) > 1:
+
+                # Silhouette Score
+                silhouette = silhouette_score(df, labels)
+
+                # Davies-Bouldin Index
+                db_score = davies_bouldin_score(df, labels)
+
+                # Cardinality
+                cluster_cardinality = {cluster: sum(labels == cluster) for cluster in np.unique(labels)}
+
+            # If only one cluster
+            else:
+                cluster_cardinality = {'Unique cluster': len(df)}
+                    
+            # Guardar resultados
+            results.append({
+                "n_clusters": n_clusters,
+                "assign_labels": assign_labels,
+                "silhouette_score": silhouette,
+                "davies_bouldin_score": db_score,
+                "cardinality": cluster_cardinality
+            })
+
+    # Return metrics
+    return pd.DataFrame(results)
 
 
 
