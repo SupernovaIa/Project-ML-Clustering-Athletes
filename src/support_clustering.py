@@ -27,6 +27,34 @@ from sklearn.cluster import SpectralClustering
 import scipy.cluster.hierarchy as sch
 
 
+def clustering_metrics(df, labels):
+    """
+    Calculate clustering metrics and return them in a DataFrame.
+
+    Parameters
+    ----------
+        - df (pd.DataFrame): The data used for clustering.
+        - labels (array-like): Cluster labels assigned to each data point.
+
+    Returns
+    -------
+        - (pd.DataFrame): A DataFrame containing the silhouette score, Davies-Bouldin index, and cluster cardinality for each cluster.
+    """
+
+    silhouette = silhouette_score(df, labels)
+    davies_bouldin = davies_bouldin_score(df, labels)
+
+    cardinality = {cluster: sum(labels == cluster) for cluster in np.unique(labels)}
+
+    df_metrics = pd.DataFrame({
+                        "silhouette_score": silhouette,
+                        "davies_bouldin_index": davies_bouldin,
+                        "cardinality": cardinality
+                        })
+    
+    return df_metrics
+
+
 def plot_combined_target_distribution(df, target, feature, size=(10, 6)):
     """
     Plots the combined distribution of a feature and the proportion of a binary target variable.
@@ -371,6 +399,67 @@ def spectral_methods(df, n_clusters_list = [2, 3, 4, 5], assign_labels_options =
 
     # Return metrics
     return pd.DataFrame(results)
+
+
+def dbscan_methods(df, eps_values=[1, 2, 3, 4, 5], min_samples_values=[5, 10, 15, 20]):
+    """
+    Applies the DBSCAN clustering algorithm to a given dataset for a range of `eps` and `min_samples` parameter values, evaluating clustering performance using silhouette score and Davies-Bouldin index.
+
+    Parameters
+    ----------
+    - df (pd.DataFrame): The input dataset to cluster.
+    - eps_values (list of float, optional): A list of epsilon values for DBSCAN. Default is [1, 2, 3, 4, 5].
+    - min_samples_values (list of int, optional): A list of minimum samples values for DBSCAN. Default is [5, 10, 15, 20].
+
+    Returns
+    -------
+    - (pd.DataFrame): A dataframe containing the results of clustering for each combination of `eps` and `min_samples`, including silhouette score, Davies-Bouldin index, and cluster cardinality.
+    """
+
+    # Results storage
+    results = []
+
+    for eps in eps_values:
+        for min_samples in min_samples_values:
+
+            # Apply DBSCAN
+            dbscan = DBSCAN(eps=eps, min_samples=min_samples, n_jobs=-1)
+
+            # Model fit
+            labels = dbscan.fit_predict(df)
+
+            # Initialize metrics
+            silhouette, db_score = None, None
+
+            # Compute metrics ignoring noise
+            if len(set(labels)) > 1 and len(set(labels)) < len(labels):
+
+                # Silhouette Score
+                silhouette = silhouette_score(df, labels)
+
+                # Davies-Bouldin Index
+                db_score = davies_bouldin_score(df, labels)
+
+                # Cardinality
+                cluster_cardinality = {cluster: sum(labels == cluster) for cluster in np.unique(labels)}
+
+            else:
+                silhouette = -1
+                cluster_cardinality = {'Unique cluster': len(df)}
+
+            # Save results
+            results.append({
+                "eps": eps,
+                "min_samples": min_samples,
+                "silhouette_score": silhouette,
+                "davies_bouldin_score": db_score,
+                "cardinality": cluster_cardinality
+            })
+
+    # Return metrics
+    return pd.DataFrame(results).sort_values(by="silhouette_score", ascending=False)
+
+
 
 
 
